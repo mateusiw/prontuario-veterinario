@@ -1,0 +1,507 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Prontuário Vet - Dr. Manuel Victor</title>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Ícones -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- html2pdf -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
+    
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Roboto+Slab:wght@400;700&display=swap');
+        
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #f3f4f6;
+        }
+
+        /* Estilos de Impressão e Folha A4 */
+        @media print {
+            @page { margin: 0; size: A4; }
+            body { 
+                background-color: white; 
+                -webkit-print-color-adjust: exact; 
+                print-color-adjust: exact;
+            }
+            .no-print { display: none !important; }
+            .print-area { 
+                display: block !important; 
+                width: 100%; 
+                height: 100%; 
+                position: absolute; 
+                top: 0; 
+                left: 0; 
+                margin: 0; 
+                padding: 0; /* Controle via padding interno da div .a4-paper */
+                box-shadow: none !important;
+                border: none !important;
+            }
+            /* Esconde backgrounds de formulário na impressão se vazarem */
+            input, select, textarea { border: none !important; background: transparent !important; resize: none; }
+        }
+
+        .a4-paper {
+            width: 210mm;
+            min-height: 297mm;
+            background: white;
+            box-shadow: 0 0 15px rgba(0,0,0,0.1);
+            margin: auto;
+            /* Margens internas similares a um documento Word/Receituário */
+            padding: 15mm 20mm 20mm 20mm; 
+            box-sizing: border-box;
+            position: relative;
+            display: flex;
+            flex-direction: column;
+        }
+
+        /* Fontes específicas para o documento impresso para dar ar de "Timbrado" */
+        .doc-header h1 {
+            font-family: 'Roboto Slab', serif; /* Fonte mais encorpada para o nome */
+            letter-spacing: 0.5px;
+        }
+        .doc-info-label {
+            font-weight: 700;
+            color: #374151;
+            text-transform: uppercase;
+            font-size: 0.75rem;
+            margin-right: 4px;
+        }
+        .doc-info-value {
+            border-bottom: 1px dotted #9ca3af;
+            padding-bottom: 0px;
+            padding-right: 10px;
+            font-weight: 500;
+            color: #111827;
+            text-transform: uppercase;
+        }
+        
+        /* Linhas pautadas suaves para o corpo do texto (opcional, removido para limpeza, mas mantido estrutura) */
+        .content-block {
+            margin-top: 10px;
+            margin-bottom: 10px;
+        }
+
+        /* Marca d'água lateral ou fundo se necessário (opcional) */
+        .watermark {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%) rotate(-45deg);
+            font-size: 10rem;
+            color: rgba(0,0,0,0.03);
+            font-weight: bold;
+            pointer-events: none;
+            z-index: 0;
+            white-space: nowrap;
+        }
+    </style>
+</head>
+<body class="text-gray-800">
+
+    <!-- Container Principal (Formulário) -->
+    <div id="app-container" class="container mx-auto p-4 max-w-4xl no-print">
+        
+        <!-- Header do App -->
+        <header class="mb-6 flex items-center justify-between bg-white p-6 rounded-xl shadow-sm border border-gray-200">
+            <div>
+                <h1 class="text-2xl font-bold text-teal-700 flex items-center gap-2">
+                    <i class="fa-solid fa-file-invoice-dollar"></i> Gerador de Documentos
+                </h1>
+                <p class="text-gray-500 text-sm">Configurado para: Dr. Manuel Victor</p>
+            </div>
+            <button onclick="limparFormulario()" class="text-red-500 hover:text-red-700 text-sm font-medium border border-red-200 px-3 py-1 rounded hover:bg-red-50">
+                <i class="fa-solid fa-trash"></i> Limpar Tudo
+            </button>
+        </header>
+
+        <form id="vetForm" onsubmit="event.preventDefault(); gerarRelatorio();" class="space-y-6">
+            
+            <!-- Dados do Profissional (Oculto/Fixo mas editável se precisar) -->
+            <div class="hidden">
+                <input type="text" id="clinicaNome" value="DR. MANUEL VICTOR DOS SANTOS GOMES">
+                <input type="text" id="clinicaCrmv" value="CRMV-PI: 02120 VP">
+                <input type="text" id="clinicaEndereco" value="PRAÇA DA INDEPENDÊNCIA, N° 50, CENTRO, ALTOS PI, CEP 64.290-000">
+                <input type="text" id="clinicaContatos" value="(86) 99427-5801 / (88) 99413-9399">
+            </div>
+
+            <!-- Seção 1: Dados do Atendimento -->
+            <div class="bg-white p-6 rounded-xl shadow-sm border border-gray-200">
+                <h2 class="text-lg font-semibold text-gray-700 mb-4 border-b pb-2"><i class="fa-regular fa-calendar-check"></i> Dados do Atendimento</h2>
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                     <div>
+                        <label class="block text-sm font-medium text-gray-700">Tipo de Documento</label>
+                        <select id="tipoDocumento" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm border p-2 focus:border-teal-500 focus:ring-teal-200" onchange="atualizarTituloDocumento()">
+                            <option value="PRONTUÁRIO MÉDICO">Prontuário Médico</option>
+                            <option value="RECEITUÁRIO">Receituário</option>
+                            <option value="ENCAMINHAMENTO">Encaminhamento</option>
+                            <option value="ATESTADO">Atestado</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700">Data</label>
+                        <input type="date" id="dataAtendimento" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm border p-2 focus:border-teal-500 focus:ring-teal-200">
+                    </div>
+                </div>
+            </div>
+
+            <!-- Seção 2: Identificação (Seguindo o PDF) -->
+            <div class="bg-white p-6 rounded-xl shadow-sm border border-gray-200">
+                <h2 class="text-lg font-semibold text-gray-700 mb-4 border-b pb-2"><i class="fa-solid fa-paw"></i> Identificação</h2>
+                
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <!-- Linha 1 -->
+                    <div class="md:col-span-1">
+                        <label class="block text-sm font-medium text-gray-700">Nome do Animal *</label>
+                        <input type="text" id="animalNome" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm border p-2 focus:border-teal-500 focus:ring-teal-200" required placeholder="Ex: Rex">
+                    </div>
+                    <div class="md:col-span-1">
+                         <div class="flex gap-4">
+                            <div class="w-1/2">
+                                <label class="block text-sm font-medium text-gray-700">Espécie</label>
+                                <select id="animalEspecie" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm border p-2 focus:border-teal-500 focus:ring-teal-200">
+                                    <option>Canina</option>
+                                    <option>Felina</option>
+                                    <option>Outra</option>
+                                </select>
+                            </div>
+                            <div class="w-1/2">
+                                <label class="block text-sm font-medium text-gray-700">Raça</label>
+                                <input type="text" id="animalRaca" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm border p-2 focus:border-teal-500 focus:ring-teal-200">
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Linha 2 -->
+                    <div class="md:col-span-1">
+                        <div class="flex gap-4">
+                             <div class="w-1/2">
+                                <label class="block text-sm font-medium text-gray-700">Idade</label>
+                                <input type="text" id="animalIdade" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm border p-2 focus:border-teal-500 focus:ring-teal-200">
+                            </div>
+                            <div class="w-1/2">
+                                <label class="block text-sm font-medium text-gray-700">Peso (kg)</label>
+                                <input type="number" step="0.1" id="animalPeso" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm border p-2 focus:border-teal-500 focus:ring-teal-200">
+                            </div>
+                        </div>
+                    </div>
+                    <div class="md:col-span-1">
+                        <!-- Espaço vazio ou sexo -->
+                        <label class="block text-sm font-medium text-gray-700">Sexo</label>
+                        <select id="animalSexo" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm border p-2 focus:border-teal-500 focus:ring-teal-200">
+                            <option>Macho</option>
+                            <option>Fêmea</option>
+                        </select>
+                    </div>
+
+                    <!-- Linha 3 (Tutor) -->
+                    <div class="md:col-span-1">
+                        <label class="block text-sm font-medium text-gray-700">Responsável (Tutor) *</label>
+                        <input type="text" id="tutorNome" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm border p-2 focus:border-teal-500 focus:ring-teal-200" required>
+                    </div>
+                    <div class="md:col-span-1">
+                        <label class="block text-sm font-medium text-gray-700">CPF do Responsável</label>
+                        <input type="text" id="tutorCPF" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm border p-2 focus:border-teal-500 focus:ring-teal-200" placeholder="000.000.000-00">
+                    </div>
+                </div>
+            </div>
+
+            <!-- Seção 3: Parâmetros (Opcional, pode ser deixado em branco) -->
+            <div class="bg-white p-6 rounded-xl shadow-sm border border-gray-200">
+                <h2 class="text-lg font-semibold text-gray-700 mb-4 border-b pb-2"><i class="fa-solid fa-heart-pulse"></i> Parâmetros Clínicos</h2>
+                <div class="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-5 gap-3">
+                    <div>
+                        <label class="text-xs font-bold text-gray-500">TEMP (°C)</label>
+                        <input type="number" step="0.1" id="paramTemp" class="w-full border-gray-300 rounded text-sm p-1.5 border">
+                    </div>
+                    <div>
+                        <label class="text-xs font-bold text-gray-500">FC (bpm)</label>
+                        <input type="number" id="paramFC" class="w-full border-gray-300 rounded text-sm p-1.5 border">
+                    </div>
+                    <div>
+                        <label class="text-xs font-bold text-gray-500">FR (mpm)</label>
+                        <input type="number" id="paramFR" class="w-full border-gray-300 rounded text-sm p-1.5 border">
+                    </div>
+                    <div>
+                        <label class="text-xs font-bold text-gray-500">TPC (s)</label>
+                        <input type="text" id="paramTPC" class="w-full border-gray-300 rounded text-sm p-1.5 border">
+                    </div>
+                    <div>
+                        <label class="text-xs font-bold text-gray-500">Mucosas</label>
+                        <select id="paramMucosas" class="w-full border-gray-300 rounded text-sm p-1.5 border">
+                            <option value="">--</option>
+                            <option value="Normocoradas">Normocoradas</option>
+                            <option value="Pálidas">Pálidas</option>
+                            <option value="Congestas">Congestas</option>
+                            <option value="Ictéricas">Ictéricas</option>
+                            <option value="Cianóticas">Cianóticas</option>
+                        </select>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Seção 4: Conteúdo do Documento -->
+            <div class="bg-white p-6 rounded-xl shadow-sm border border-gray-200">
+                <h2 class="text-lg font-semibold text-gray-700 mb-4 border-b pb-2"><i class="fa-solid fa-pen-to-square"></i> Conteúdo Clínico</h2>
+                
+                <div class="space-y-4">
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">Anamnese / Histórico</label>
+                        <textarea id="textoAnamnese" rows="3" class="w-full rounded-md border-gray-300 shadow-sm border p-2 focus:border-teal-500 focus:ring-teal-200"></textarea>
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">Exame Físico / Diagnóstico</label>
+                        <textarea id="textoDiagnostico" rows="3" class="w-full rounded-md border-gray-300 shadow-sm border p-2 focus:border-teal-500 focus:ring-teal-200"></textarea>
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1 bg-teal-50 p-1 w-fit rounded text-teal-800">Prescrição / Tratamento (Área Principal)</label>
+                        <textarea id="textoTratamento" rows="8" class="w-full rounded-md border-gray-300 shadow-sm border p-2 focus:border-teal-500 focus:ring-teal-200 placeholder-gray-300" placeholder="Digite aqui a prescrição completa..."></textarea>
+                    </div>
+                </div>
+            </div>
+
+            <button type="submit" class="w-full bg-teal-700 hover:bg-teal-800 text-white font-bold py-4 px-6 rounded-xl shadow-lg transition duration-200 flex justify-center items-center gap-2 text-lg uppercase tracking-wide">
+                <i class="fa-solid fa-print"></i> Gerar Documento
+            </button>
+        </form>
+    </div>
+
+    <!-- MODO VISUALIZAÇÃO / IMPRESSÃO -->
+    <div id="report-view" class="hidden">
+        
+        <!-- Controles -->
+        <div class="container mx-auto max-w-4xl p-4 flex flex-col md:flex-row justify-between items-center gap-3 no-print mb-4 bg-gray-100 rounded-lg mt-4 border border-gray-200">
+            <button onclick="editarRelatorio()" class="text-gray-600 hover:text-gray-900 font-medium py-2 px-4 flex items-center gap-2">
+                <i class="fa-solid fa-arrow-left"></i> Voltar à edição
+            </button>
+            <div class="flex gap-2">
+                <button onclick="baixarPDF()" class="bg-teal-700 hover:bg-teal-800 text-white font-semibold py-2 px-6 rounded shadow flex items-center gap-2">
+                    <i class="fa-solid fa-download"></i> Baixar PDF
+                </button>
+                <button onclick="window.print()" class="bg-gray-700 hover:bg-gray-800 text-white font-semibold py-2 px-6 rounded shadow flex items-center gap-2">
+                    <i class="fa-solid fa-print"></i> Imprimir
+                </button>
+            </div>
+        </div>
+
+        <!-- FOLHA A4 - LAYOUT DO MODELO ENVIADO -->
+        <div class="a4-paper print-area" id="documento-final">
+            
+            <!-- Marca d'água de fundo (suave) -->
+            <div class="watermark" id="watermarkText">PRONTUÁRIO</div>
+
+            <!-- Cabeçalho Centralizado -->
+            <div class="doc-header text-center mb-6">
+                <h1 class="text-2xl font-bold text-black uppercase" id="printClinicaNome">DR. MANUEL VICTOR DOS SANTOS GOMES</h1>
+                <p class="font-bold text-sm text-gray-800 mt-1" id="printCrmv">CRMV-PI: 02120 VP</p>
+                <p class="text-xs text-gray-600 mt-1 uppercase tracking-wide" id="printEndereco">PRAÇA DA INDEPENDÊNCIA, N° 50, CENTRO, ALTOS PI, CEP 64.290-000</p>
+                <p class="text-xs text-gray-600 font-medium" id="printContatos">(86) 99427-5801 / (88) 99413-9399</p>
+            </div>
+
+            <!-- Barra de Título do Documento -->
+            <div class="text-center mb-6 border-t border-b border-gray-300 py-1">
+                <h2 class="text-xl font-bold text-gray-800 uppercase tracking-widest" id="printTipoDoc">PRONTUÁRIO MÉDICO</h2>
+            </div>
+
+            <!-- Bloco de Identificação (Estilo Linha) -->
+            <div class="mb-6 px-2">
+                <!-- Linha 1: Nome, Idade, Raça, Espécie -->
+                <div class="flex flex-wrap items-baseline mb-2">
+                    <span class="doc-info-label">NOME:</span>
+                    <div class="flex-grow doc-info-value mr-4" id="printAnimal">---</div>
+                    
+                    <span class="doc-info-label">IDADE:</span>
+                    <div class="w-16 doc-info-value mr-4 text-center" id="printIdade">--</div>
+                    
+                    <span class="doc-info-label">ESPÉCIE:</span>
+                    <div class="w-20 doc-info-value mr-4" id="printEspecie">--</div>
+
+                    <span class="doc-info-label">RAÇA:</span>
+                    <div class="w-32 doc-info-value" id="printRaca">--</div>
+                </div>
+
+                <!-- Linha 2: Responsável, CPF -->
+                <div class="flex flex-wrap items-baseline">
+                    <span class="doc-info-label">RESPONSÁVEL:</span>
+                    <div class="flex-grow doc-info-value mr-4" id="printTutor">---</div>
+                    
+                    <span class="doc-info-label">CPF:</span>
+                    <div class="w-40 doc-info-value" id="printCpf">---</div>
+                </div>
+
+                <!-- Linha Oculta de Parâmetros (Aparece se preenchido) -->
+                <div id="printParametrosBox" class="mt-3 text-xs border border-gray-200 rounded p-2 bg-gray-50 hidden">
+                    <span class="font-bold mr-2">PARÂMETROS:</span>
+                    <span class="mr-3">Peso: <span id="printPeso">--</span>kg</span>
+                    <span class="mr-3">Temp: <span id="printTemp">--</span>°C</span>
+                    <span class="mr-3">FC: <span id="printFC">--</span></span>
+                    <span class="mr-3">FR: <span id="printFR">--</span></span>
+                    <span class="mr-3">TPC: <span id="printTPC">--</span></span>
+                    <span class="mr-3">Mucosas: <span id="printMucosas">--</span></span>
+                </div>
+            </div>
+
+            <!-- Corpo do Texto -->
+            <div class="flex-grow px-4 py-2 text-sm leading-relaxed text-justify space-y-6">
+                
+                <!-- Anamnese -->
+                <div id="boxAnamnese">
+                    <h3 class="font-bold text-gray-800 underline text-xs mb-1 uppercase">Anamnese:</h3>
+                    <p id="printAnamnese" class="whitespace-pre-line text-gray-700 mb-2"></p>
+                </div>
+
+                <!-- Diagnóstico -->
+                <div id="boxDiagnostico">
+                    <h3 class="font-bold text-gray-800 underline text-xs mb-1 uppercase">Diagnóstico / Exame Físico:</h3>
+                    <p id="printDiagnostico" class="whitespace-pre-line text-gray-700 mb-2"></p>
+                </div>
+
+                <!-- Prescrição (Maior Destaque) -->
+                <div id="boxTratamento" class="mt-4">
+                    <h3 class="font-bold text-gray-800 underline text-xs mb-2 uppercase">Prescrição / Conduta:</h3>
+                    <div id="printTratamento" class="whitespace-pre-line text-gray-900 font-medium text-base ml-2"></div>
+                </div>
+
+            </div>
+
+            <!-- Data e Local -->
+            <div class="text-right mt-8 px-4 mb-10">
+                <p class="text-sm text-gray-600">
+                    Altos - PI, <span id="printDataExtenso">00 de Janeiro de 0000</span>.
+                </p>
+            </div>
+
+            <!-- Rodapé Fixo -->
+            <div class="mt-auto pt-4 text-center">
+                <!-- Assinatura -->
+                <div class="mb-8 flex flex-col items-center">
+                    <div class="w-64 border-b border-black mb-2"></div>
+                    <p class="font-bold text-sm uppercase">DR. MANUEL VICTOR DOS SANTOS GOMES</p>
+                    <p class="text-xs font-bold text-gray-600">CRMV-PI: 02120 VP</p>
+                </div>
+
+                <!-- Footer Branding -->
+                <div class="border-t-2 border-gray-800 pt-3 pb-2 flex justify-between items-center px-8 text-xs font-bold text-gray-700 uppercase tracking-wider">
+                    <div class="flex items-center gap-1">
+                        <i class="fa-brands fa-instagram"></i> MV.MANUELVICTOR
+                    </div>
+                    <div>
+                         (88) 99413-9399
+                    </div>
+                </div>
+                <div class="bg-gray-800 text-white text-[10px] py-1 uppercase tracking-widest w-full">
+                    Receituário Médico Veterinário
+                </div>
+            </div>
+
+        </div>
+        <div class="h-20 w-full no-print"></div>
+    </div>
+
+    <script>
+        // Inicialização
+        document.addEventListener('DOMContentLoaded', () => {
+            document.getElementById('dataAtendimento').valueAsDate = new Date();
+        });
+
+        function atualizarTituloDocumento() {
+            const tipo = document.getElementById('tipoDocumento').value;
+            document.getElementById('watermarkText').innerText = tipo.split(' ')[0]; // Pega só a primeira palavra para a marca d'água
+        }
+
+        function gerarRelatorio() {
+            // Campos simples
+            const map = {
+                'clinicaNome': 'printClinicaNome',
+                'clinicaCrmv': 'printCrmv',
+                'clinicaEndereco': 'printEndereco',
+                'clinicaContatos': 'printContatos',
+                'animalNome': 'printAnimal',
+                'animalEspecie': 'printEspecie',
+                'animalRaca': 'printRaca',
+                'animalIdade': 'printIdade',
+                'tutorNome': 'printTutor',
+                'tutorCPF': 'printCpf',
+                'animalPeso': 'printPeso',
+                'paramTemp': 'printTemp',
+                'paramFC': 'printFC',
+                'paramFR': 'printFR',
+                'paramTPC': 'printTPC',
+                'paramMucosas': 'printMucosas',
+                'tipoDocumento': 'printTipoDoc',
+                'textoAnamnese': 'printAnamnese',
+                'textoDiagnostico': 'printDiagnostico',
+                'textoTratamento': 'printTratamento'
+            };
+
+            for (const [inputId, printId] of Object.entries(map)) {
+                const input = document.getElementById(inputId);
+                const output = document.getElementById(printId);
+                if (input && output) {
+                    output.innerText = input.value || (input.tagName === 'SELECT' ? '' : '---');
+                    
+                    // Lógica para esconder seções vazias para ficar mais limpo
+                    if (inputId === 'textoAnamnese') {
+                        document.getElementById('boxAnamnese').style.display = input.value ? 'block' : 'none';
+                    }
+                    if (inputId === 'textoDiagnostico') {
+                        document.getElementById('boxDiagnostico').style.display = input.value ? 'block' : 'none';
+                    }
+                }
+            }
+
+            // Exibir caixa de parâmetros se houver algum dado preenchido
+            const temParametros = ['paramTemp', 'paramFC', 'paramFR', 'animalPeso'].some(id => document.getElementById(id).value);
+            document.getElementById('printParametrosBox').classList.toggle('hidden', !temParametros);
+
+            // Data por extenso
+            const dataInput = document.getElementById('dataAtendimento').value;
+            if (dataInput) {
+                const date = new Date(dataInput + 'T00:00:00'); // Fix timezone issue
+                const options = { year: 'numeric', month: 'long', day: 'numeric' };
+                document.getElementById('printDataExtenso').innerText = date.toLocaleDateString('pt-BR', options);
+            }
+
+            // Marca d'água
+            atualizarTituloDocumento();
+
+            // Troca tela
+            document.getElementById('app-container').classList.add('hidden');
+            document.getElementById('report-view').classList.remove('hidden');
+            window.scrollTo(0, 0);
+        }
+
+        function editarRelatorio() {
+            document.getElementById('report-view').classList.add('hidden');
+            document.getElementById('app-container').classList.remove('hidden');
+            window.scrollTo(0, 0);
+        }
+
+        function limparFormulario() {
+            if(confirm("Deseja limpar todos os campos?")) {
+                document.getElementById('vetForm').reset();
+                document.getElementById('dataAtendimento').valueAsDate = new Date();
+            }
+        }
+
+        function baixarPDF() {
+            const element = document.getElementById('documento-final');
+            const animal = document.getElementById('printAnimal').innerText;
+            const tipo = document.getElementById('printTipoDoc').innerText;
+            
+            const opt = {
+                margin: 0,
+                filename: `${tipo}_${animal}.pdf`,
+                image: { type: 'jpeg', quality: 0.98 },
+                html2canvas: { scale: 2, useCORS: true },
+                jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' }
+            };
+
+            html2pdf().set(opt).from(element).save();
+        }
+    </script>
+</body>
+</html>
