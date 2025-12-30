@@ -1240,10 +1240,10 @@
                 cancelarTipoDocManual(); 
                 cancelarSexoManual(); 
                 cancelarMucosasManual(); 
-                cancelarMedicamentoManual(); // New
-                cancelarDosagemManual(); // New
-                cancelarFrequenciaManual(); // New
-                cancelarTempoManual(); // New
+                cancelarMedicamentoManual(); 
+                cancelarDosagemManual(); 
+                cancelarFrequenciaManual(); 
+                cancelarTempoManual(); 
             }
         }
 
@@ -1312,18 +1312,31 @@
                 CPF: document.getElementById('tutorCPF').value,
                 Anamnese: document.getElementById('textoAnamnese').value,
                 Diagnostico: document.getElementById('textoDiagnostico').value,
+                // NOVOS CAMPOS ADICIONADOS
+                Temp: document.getElementById('paramTemp').value,
+                FC: document.getElementById('paramFC').value,
+                FR: document.getElementById('paramFR').value,
+                TPC: document.getElementById('paramTPC').value,
                 Mucosas: mucosasCSV,
-                Receita: listaReceita.map(i => i.texto.replace(/<[^>]*>/g, '')).join('; ') // Remove HTML tags
+                Receita: listaReceita.map(i => i.texto.replace(/<[^>]*>/g, '')).join('; '), // Remove HTML tags
+                Orientacoes: document.getElementById('textoOrientacoes').value
             };
+
+            // Cabeçalho CSV
+            const headers = Object.keys(dados);
 
             // Linha de dados (escapando aspas e quebras de linha)
             const values = Object.values(dados).map(val => {
                 const stringVal = String(val || '');
-                return `"${stringVal.replace(/"/g, '""')}"`; // Escapa aspas duplas
+                // Substitui quebras de linha por espaço para não quebrar o CSV e escapa aspas duplas
+                return `"${stringVal.replace(/"/g, '""').replace(/(\r\n|\n|\r)/gm, " ")}"`; 
             });
 
-            // Apenas os valores, sem cabeçalho
-            const csvContent = values.join(','); 
+            // Une cabeçalho e valores com quebra de linha (MODIFICADO: VOLTOU OS TÍTULOS)
+            const csvContent = [
+                headers.join(','),
+                values.join(',')
+            ].join('\n');
 
             // Download
             const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
