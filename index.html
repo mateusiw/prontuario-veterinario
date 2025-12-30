@@ -1337,7 +1337,7 @@
                 Orientacoes: document.getElementById('textoOrientacoes').value
             };
 
-            // Cabeçalho CSV
+            // Cabeçalho CSV (não usado na exportação final, mas mantido para referência se precisar voltar)
             const headers = Object.keys(dados);
 
             // Linha de dados (escapando aspas e quebras de linha)
@@ -1347,11 +1347,8 @@
                 return `"${stringVal.replace(/"/g, '""').replace(/(\r\n|\n|\r)/gm, " ")}"`; 
             });
 
-            // Une cabeçalho e valores com quebra de linha (MODIFICADO: VOLTOU OS TÍTULOS)
-            const csvContent = [
-                headers.join(','),
-                values.join(',')
-            ].join('\n');
+            // Apenas os valores, sem cabeçalho (MODIFICADO: REMOVIDOS OS TÍTULOS)
+            const csvContent = values.join(',');
 
             // Download
             const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
