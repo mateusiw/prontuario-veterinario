@@ -213,7 +213,7 @@
                         <!-- Modo Lista Suspensa (Tipo de Documento) -->
                         <div id="wrapperTipoDocSelect" class="select-wrapper">
                             <select id="tipoDocumento" class="select-chic" onchange="verificarTipoDocManual(this)">
-                                <option value="PRONTUÁRIO MÉDICO">Prontuário Médico</option>
+                                <option value="PRONTUÁRIO">Prontuário</option>
                                 <option value="RECEITUÁRIO">Receituário</option>
                                 <option value="ENCAMINHAMENTO">Encaminhamento</option>
                                 <option value="ATESTADO">Atestado</option>
@@ -789,7 +789,7 @@
             document.getElementById('wrapperTipoDocSelect').classList.remove('hidden');
             
             const select = document.getElementById('tipoDocumento');
-            select.value = "PRONTUÁRIO MÉDICO"; 
+            select.value = "PRONTUÁRIO"; 
             document.getElementById('tipoDocumentoManual').value = "";
             atualizarTituloDocumento();
         }
